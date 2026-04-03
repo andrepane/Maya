@@ -1,9 +1,9 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
   getAuth,
   signInAnonymously,
   onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import {
   getFirestore,
   collection,
@@ -15,15 +15,15 @@ import {
   orderBy,
   getDocs,
   writeBatch
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "PEGA_AQUI_TU_API_KEY",
-  authDomain: "PEGA_AQUI_TU_AUTH_DOMAIN",
-  projectId: "PEGA_AQUI_TU_PROJECT_ID",
-  storageBucket: "PEGA_AQUI_TU_STORAGE_BUCKET",
-  messagingSenderId: "PEGA_AQUI_TU_MESSAGING_SENDER_ID",
-  appId: "PEGA_AQUI_TU_APP_ID"
+  apiKey: "AIzaSyARdk5DaF17f-e06vnNqVCTwInMn5qPJB0",
+  authDomain: "maya-927cb.firebaseapp.com",
+  projectId: "maya-927cb",
+  storageBucket: "maya-927cb.firebasestorage.app",
+  messagingSenderId: "898371027452",
+  appId: "1:898371027452:web:9cc3c0efffc367d7d0f279"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -84,6 +84,7 @@ async function signIn() {
         syncStatusEl.textContent = "Sin sesión";
         return;
       }
+
       syncStatusEl.textContent = "Sincronizado";
       subscribeToEvents();
     });
@@ -249,10 +250,14 @@ function renderDesktopTable() {
       diffMap.set(item.id, "Primer registro");
       return;
     }
+
     const previous = chronological[index - 1];
-    diffMap.set(item.id, humanizeDuration(
-      new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-    ));
+    diffMap.set(
+      item.id,
+      humanizeDuration(
+        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
+      )
+    );
   });
 
   eventsTableBody.innerHTML = events
@@ -304,10 +309,14 @@ function renderMobileCards() {
       diffMap.set(item.id, "Primer registro");
       return;
     }
+
     const previous = chronological[index - 1];
-    diffMap.set(item.id, humanizeDuration(
-      new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-    ));
+    diffMap.set(
+      item.id,
+      humanizeDuration(
+        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
+      )
+    );
   });
 
   mobileCards.innerHTML = events
@@ -410,10 +419,14 @@ function downloadPdf() {
       diffMap.set(item.id, "Primer registro");
       return;
     }
+
     const previous = chronological[index - 1];
-    diffMap.set(item.id, humanizeDuration(
-      new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-    ));
+    diffMap.set(
+      item.id,
+      humanizeDuration(
+        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
+      )
+    );
   });
 
   const body = events.map((item) => [
