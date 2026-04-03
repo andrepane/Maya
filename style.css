@@ -1,38 +1,50 @@
 :root {
   --bg: #f5efe6;
-  --bg-2: #efe6da;
-  --panel: rgba(255, 255, 255, 0.92);
+  --bg-2: #eee4d7;
+  --panel: rgba(255, 255, 255, 0.94);
   --panel-strong: #ffffff;
-  --text: #201d1a;
+  --text: #1f1c19;
   --muted: #6d655d;
   --border: #e2d9cc;
-  --primary: #7d5d3f;
-  --primary-hover: #684b31;
+  --primary: #8a6440;
+  --primary-hover: #724f2f;
   --secondary: #eee3d3;
   --danger: #b74b4b;
   --danger-hover: #973b3b;
+  --attack-bg: #f4eadc;
+  --attack-text: #6a4b2d;
+  --extra-bg: #e7eefb;
+  --extra-text: #2f4f85;
   --shadow: 0 14px 38px rgba(45, 35, 24, 0.08);
   --radius-xl: 24px;
   --radius-lg: 18px;
   --radius-md: 14px;
-  --radius-sm: 12px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
   --max-width: 1320px;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
@@ -47,7 +59,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -56,8 +69,11 @@ button {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: #fff;
@@ -66,10 +82,13 @@ textarea {
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-input {
-  min-height: 50px;
+input,
+select {
+  min-height: 52px;
 }
 
 textarea {
@@ -78,7 +97,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: rgba(125, 93, 63, 0.75);
   box-shadow: 0 0 0 4px rgba(125, 93, 63, 0.12);
 }
@@ -86,6 +106,8 @@ textarea:focus {
 .app-shell {
   max-width: var(--max-width);
   margin: 0 auto;
+  width: 100%;
+  overflow-x: clip;
 }
 
 .topbar {
@@ -97,6 +119,19 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.topbar__text,
+.topbar__actions,
+.main-layout,
+.panel,
+.field-grid,
+.field,
+.stats-grid,
+.mobile-cards,
+.event-card,
+.table-wrap {
+  min-width: 0;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--muted);
@@ -106,7 +141,7 @@ textarea:focus {
 h1 {
   margin: 0;
   line-height: 1.06;
-  font-size: clamp(1.85rem, 4vw, 2.7rem);
+  font-size: clamp(1.9rem, 4vw, 2.7rem);
 }
 
 .subtitle {
@@ -130,6 +165,7 @@ h1 {
   box-shadow: var(--shadow);
   backdrop-filter: blur(8px);
   padding: 16px;
+  overflow: hidden;
 }
 
 .panel__head {
@@ -254,6 +290,10 @@ h1 {
   font-size: 1.02rem;
 }
 
+.desktop-table {
+  display: none;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -263,7 +303,7 @@ h1 {
 
 table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1350px;
   border-collapse: collapse;
 }
 
@@ -291,15 +331,33 @@ th {
   padding: 24px 12px;
 }
 
-.badge-time {
+.badge-time,
+.badge-type {
   display: inline-block;
   white-space: nowrap;
-  background: #f0e5d8;
-  color: #5a432e;
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.badge-time {
+  background: #f0e5d8;
+  color: #5a432e;
+}
+
+.badge-type--attack {
+  background: var(--attack-bg);
+  color: var(--attack-text);
+}
+
+.badge-type--extra {
+  background: var(--extra-bg);
+  color: var(--extra-text);
+}
+
+.row-extra {
+  background: rgba(231, 238, 251, 0.35);
 }
 
 .row-actions {
@@ -347,6 +405,11 @@ th {
   gap: 12px;
 }
 
+.event-card--extra {
+  border-color: #cddaf4;
+  background: #f7faff;
+}
+
 .event-card__top {
   display: flex;
   justify-content: space-between;
@@ -365,10 +428,6 @@ th {
   margin-top: 3px;
 }
 
-.event-card__pill {
-  align-self: flex-start;
-}
-
 .event-card__grid {
   display: grid;
   gap: 10px;
@@ -379,6 +438,11 @@ th {
   border: 1px solid #efe5d8;
   border-radius: 14px;
   padding: 10px 12px;
+}
+
+.event-card--extra .event-card__item {
+  background: #eef4ff;
+  border-color: #d8e3f8;
 }
 
 .event-card__item span {
@@ -422,10 +486,6 @@ th {
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
-}
-
-.desktop-table {
-  display: none;
 }
 
 @media (min-width: 760px) {
