@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#f7f4ef" />
+  <title>Registro de ataques - Maya</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Registro veterinario</p>
+        <h1>Registro de ataques de Maya</h1>
+      </div>
+      <button id="downloadPdfBtn" class="btn btn-primary" type="button">
+        Descargar PDF
+      </button>
+    </header>
+
+    <main class="layout">
+      <section class="card form-card">
+        <div class="section-head">
+          <h2>Nuevo evento</h2>
+          <p>Rellena los datos del episodio y guárdalos en el registro.</p>
+        </div>
+
+        <form id="eventForm" class="form">
+          <div class="field-grid">
+            <div class="field">
+              <label for="eventDate">Fecha</label>
+              <input id="eventDate" name="eventDate" type="date" required />
+            </div>
+
+            <div class="field">
+              <label for="eventTime">Hora</label>
+              <input id="eventTime" name="eventTime" type="time" required />
+            </div>
+
+            <div class="field">
+              <label for="durationMinutes">Duración (min)</label>
+              <input
+                id="durationMinutes"
+                name="durationMinutes"
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="Ej. 2"
+                required
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="triggers">Posibles desencadenantes</label>
+              <input
+                id="triggers"
+                name="triggers"
+                type="text"
+                placeholder="Estrés, comida, ascensor, agobio, ruido..."
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="dailyMedication">Medicación preventiva diaria</label>
+              <input
+                id="dailyMedication"
+                name="dailyMedication"
+                type="text"
+                placeholder="Fenobarbital 9,75 mg cada 12 h"
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="rescueMedication">Medicación de rescate</label>
+              <input
+                id="rescueMedication"
+                name="rescueMedication"
+                type="text"
+                placeholder="Diazepam 5 mg, media dosis, etc."
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="symptoms">Síntomas</label>
+              <textarea
+                id="symptoms"
+                name="symptoms"
+                rows="3"
+                placeholder="Espasmos, rigidez, temblores, movimientos faciales, salivación..."
+              ></textarea>
+            </div>
+
+            <div class="field field-full">
+              <label for="notes">Observaciones</label>
+              <textarea
+                id="notes"
+                name="notes"
+                rows="3"
+                placeholder="Estado previo, recuperación, si estaba dormida, si comió antes, etc."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar evento</button>
+            <button type="reset" class="btn btn-secondary" id="resetBtn">
+              Limpiar
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card summary-card">
+        <div class="section-head">
+          <h2>Resumen</h2>
+          <p>Vista rápida del seguimiento.</p>
+        </div>
+
+        <div class="summary-grid">
+          <article class="mini-stat">
+            <span class="mini-stat__label">Total eventos</span>
+            <strong id="totalEvents">0</strong>
+          </article>
+
+          <article class="mini-stat">
+            <span class="mini-stat__label">Último evento</span>
+            <strong id="lastEventText">—</strong>
+          </article>
+
+          <article class="mini-stat">
+            <span class="mini-stat__label">Tiempo desde el último</span>
+            <strong id="timeSinceLastNow">—</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="card table-card">
+        <div class="section-head table-head">
+          <div>
+            <h2>Eventos registrados</h2>
+            <p>Los datos se guardan en este dispositivo.</p>
+          </div>
+
+          <div class="table-actions">
+            <button id="clearAllBtn" class="btn btn-danger" type="button">
+              Borrar todo
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Desde el último</th>
+                <th>Hora</th>
+                <th>Duración</th>
+                <th>Desencadenantes</th>
+                <th>Prevención</th>
+                <th>Rescate</th>
+                <th>Síntomas</th>
+                <th>Observaciones</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTableBody">
+              <tr class="empty-row">
+                <td colspan="10">Todavía no hay eventos guardados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
