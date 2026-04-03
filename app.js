@@ -31,6 +31,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const eventForm = document.getElementById("eventForm");
+const eventTypeInput = document.getElementById("eventType");
+const extraTitleInput = document.getElementById("extraTitle");
 const eventDateInput = document.getElementById("eventDate");
 const eventTimeInput = document.getElementById("eventTime");
 const durationMinutesInput = document.getElementById("durationMinutes");
@@ -62,16 +64,38 @@ function init() {
   setDefaultDateTime();
   bindEvents();
   signIn();
+  registerServiceWorker();
+  updateExtraFormState();
 }
 
 function bindEvents() {
   eventForm.addEventListener("submit", handleSubmit);
+  eventTypeInput.addEventListener("change", updateExtraFormState);
+
   resetBtn.addEventListener("click", () => {
-    setTimeout(setDefaultDateTime, 0);
+    setTimeout(() => {
+      setDefaultDateTime();
+      eventTypeInput.value = "attack";
+      updateExtraFormState();
+    }, 0);
   });
+
   clearAllBtn.addEventListener("click", handleClearAll);
   downloadPdfBtn.addEventListener("click", downloadPdf);
   setInterval(updateLiveTimeSinceLast, 60000);
+}
+
+function updateExtraFormState() {
+  const isExtra = eventTypeInput.value === "extra";
+  extraTitleInput.required = isExtra;
+  durationMinutesInput.required = !isExtra;
+
+  if (isExtra) {
+    durationMinutesInput.value = "";
+    durationMinutesInput.placeholder = "No necesario para evento extra";
+  } else {
+    durationMinutesInput.placeholder = "Ej. 2";
+  }
 }
 
 async function signIn() {
@@ -98,7 +122,7 @@ async function signIn() {
 function subscribeToEvents() {
   if (unsubscribeEvents) unsubscribeEvents();
 
-  const q = query(collection(db, EVENTS_COLLECTION), orderBy("timestamp", "desc"));
+  const q = query(collection(db, EVENTS_COLLECTION), orderBy("timestamp", "asc"));
 
   unsubscribeEvents = onSnapshot(
     q,
@@ -121,12 +145,24 @@ function subscribeToEvents() {
 async function handleSubmit(event) {
   event.preventDefault();
 
+  const eventType = eventTypeInput.value;
   const date = eventDateInput.value;
   const time = eventTimeInput.value;
   const durationMinutes = durationMinutesInput.value.trim();
+  const extraTitle = extraTitleInput.value.trim();
 
-  if (!date || !time || !durationMinutes) {
-    showToast("Faltan datos obligatorios.");
+  if (!date || !time) {
+    showToast("Faltan fecha u hora.");
+    return;
+  }
+
+  if (eventType === "attack" && !durationMinutes) {
+    showToast("La duración es obligatoria en un ataque.");
+    return;
+  }
+
+  if (eventType === "extra" && !extraTitle) {
+    showToast("Pon un título al evento extra.");
     return;
   }
 
@@ -137,9 +173,11 @@ async function handleSubmit(event) {
   }
 
   const payload = {
+    eventType,
+    extraTitle: eventType === "extra" ? extraTitle : "",
     date,
     time,
-    durationMinutes,
+    durationMinutes: eventType === "attack" ? durationMinutes : "",
     triggers: triggersInput.value.trim(),
     dailyMedication: dailyMedicationInput.value.trim(),
     rescueMedication: rescueMedicationInput.value.trim(),
@@ -154,7 +192,9 @@ async function handleSubmit(event) {
     saveBtn.textContent = "Guardando...";
     await addDoc(collection(db, EVENTS_COLLECTION), payload);
     eventForm.reset();
+    eventTypeInput.value = "attack";
     setDefaultDateTime();
+    updateExtraFormState();
     showToast("Evento guardado.");
   } catch (error) {
     console.error(error);
@@ -227,47 +267,46 @@ function renderSummary() {
     return;
   }
 
-  const latest = events[0];
-  lastEventTextEl.textContent = `${formatDateDisplay(latest.timestamp)} · ${latest.time}`;
-  timeSinceLastNowEl.textContent = diffFromNow(latest.timestamp);
+  const latestEvent = events[events.length - 1];
+  lastEventTextEl.textContent = `${formatDateDisplay(latestEvent.timestamp)} · ${latestEvent.time}`;
+
+  const attacksOnly = events.filter((item) => item.eventType !== "extra");
+  if (!attacksOnly.length) {
+    timeSinceLastNowEl.textContent = "—";
+    return;
+  }
+
+  const latestAttack = attacksOnly[attacksOnly.length - 1];
+  timeSinceLastNowEl.textContent = diffFromNow(latestAttack.timestamp);
 }
 
 function renderDesktopTable() {
   if (!events.length) {
     eventsTableBody.innerHTML = `
       <tr class="empty-row">
-        <td colspan="10">Todavía no hay eventos guardados.</td>
+        <td colspan="12">Todavía no hay eventos guardados.</td>
       </tr>
     `;
     return;
   }
 
-  const chronological = [...events].reverse();
-
-  const diffMap = new Map();
-  chronological.forEach((item, index) => {
-    if (index === 0) {
-      diffMap.set(item.id, "Primer registro");
-      return;
-    }
-
-    const previous = chronological[index - 1];
-    diffMap.set(
-      item.id,
-      humanizeDuration(
-        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-      )
-    );
-  });
+  const diffMap = buildAttackDiffMap(events);
 
   eventsTableBody.innerHTML = events
     .map((item) => {
+      const isExtra = item.eventType === "extra";
       return `
-        <tr>
+        <tr class="${isExtra ? "row-extra" : ""}">
+          <td>
+            <span class="badge-type ${isExtra ? "badge-type--extra" : "badge-type--attack"}">
+              ${isExtra ? "Extra" : "Ataque"}
+            </span>
+          </td>
           <td>${escapeHtml(formatDateDisplay(item.timestamp))}</td>
           <td><span class="badge-time">${escapeHtml(diffMap.get(item.id) || "—")}</span></td>
           <td>${escapeHtml(item.time || "—")}</td>
-          <td>${escapeHtml(item.durationMinutes || "—")} min</td>
+          <td>${isExtra ? "—" : `${escapeHtml(item.durationMinutes || "—")} min`}</td>
+          <td>${escapeHtml(isExtra ? item.extraTitle || "—" : "—")}</td>
           <td>${escapeHtml(item.triggers || "—")}</td>
           <td>${escapeHtml(item.dailyMedication || "—")}</td>
           <td>${escapeHtml(item.rescueMedication || "—")}</td>
@@ -301,40 +340,40 @@ function renderMobileCards() {
     return;
   }
 
-  const chronological = [...events].reverse();
-
-  const diffMap = new Map();
-  chronological.forEach((item, index) => {
-    if (index === 0) {
-      diffMap.set(item.id, "Primer registro");
-      return;
-    }
-
-    const previous = chronological[index - 1];
-    diffMap.set(
-      item.id,
-      humanizeDuration(
-        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-      )
-    );
-  });
+  const diffMap = buildAttackDiffMap(events);
 
   mobileCards.innerHTML = events
     .map((item) => {
+      const isExtra = item.eventType === "extra";
+
       return `
-        <article class="event-card">
+        <article class="event-card ${isExtra ? "event-card--extra" : ""}">
           <div class="event-card__top">
             <div>
               <div class="event-card__date">${escapeHtml(formatDateDisplay(item.timestamp))}</div>
               <div class="event-card__time">${escapeHtml(item.time || "—")}</div>
             </div>
-            <span class="badge-time event-card__pill">${escapeHtml(diffMap.get(item.id) || "—")}</span>
+            <span class="badge-type ${isExtra ? "badge-type--extra" : "badge-type--attack"}">
+              ${isExtra ? "Extra" : "Ataque"}
+            </span>
           </div>
 
           <div class="event-card__grid">
             <div class="event-card__item">
+              <span>Desde el anterior ataque</span>
+              <strong>${escapeHtml(diffMap.get(item.id) || "—")}</strong>
+            </div>
+
+            ${isExtra ? `
+              <div class="event-card__item">
+                <span>Título</span>
+                <p>${escapeHtml(item.extraTitle || "—")}</p>
+              </div>
+            ` : ""}
+
+            <div class="event-card__item">
               <span>Duración</span>
-              <strong>${escapeHtml(item.durationMinutes || "—")} min</strong>
+              <strong>${isExtra ? "—" : `${escapeHtml(item.durationMinutes || "—")} min`}</strong>
             </div>
 
             <div class="event-card__item">
@@ -379,9 +418,35 @@ function renderMobileCards() {
     .join("");
 }
 
+function buildAttackDiffMap(items) {
+  const diffMap = new Map();
+  let lastAttackTimestamp = null;
+
+  items.forEach((item) => {
+    if (item.eventType === "extra") {
+      diffMap.set(item.id, lastAttackTimestamp ? humanizeDuration(new Date(item.timestamp).getTime() - lastAttackTimestamp) : "Antes del 1º ataque");
+      return;
+    }
+
+    const currentTimestamp = new Date(item.timestamp).getTime();
+
+    if (lastAttackTimestamp === null) {
+      diffMap.set(item.id, "Primer ataque");
+    } else {
+      diffMap.set(item.id, humanizeDuration(currentTimestamp - lastAttackTimestamp));
+    }
+
+    lastAttackTimestamp = currentTimestamp;
+  });
+
+  return diffMap;
+}
+
 function updateLiveTimeSinceLast() {
-  if (!events.length) return;
-  timeSinceLastNowEl.textContent = diffFromNow(events[0].timestamp);
+  const attacksOnly = events.filter((item) => item.eventType !== "extra");
+  if (!attacksOnly.length) return;
+  const latestAttack = attacksOnly[attacksOnly.length - 1];
+  timeSinceLastNowEl.textContent = diffFromNow(latestAttack.timestamp);
 }
 
 function downloadPdf() {
@@ -398,10 +463,11 @@ function downloadPdf() {
   });
 
   const exportDate = new Date();
+  const diffMap = buildAttackDiffMap(events);
 
   docPdf.setFont("helvetica", "bold");
   docPdf.setFontSize(16);
-  docPdf.text("Registro de ataques - Maya", 14, 14);
+  docPdf.text("Registro de Maya", 14, 14);
 
   docPdf.setFont("helvetica", "normal");
   docPdf.setFontSize(10);
@@ -411,43 +477,32 @@ function downloadPdf() {
     20
   );
 
-  const chronological = [...events].reverse();
-  const diffMap = new Map();
-
-  chronological.forEach((item, index) => {
-    if (index === 0) {
-      diffMap.set(item.id, "Primer registro");
-      return;
-    }
-
-    const previous = chronological[index - 1];
-    diffMap.set(
-      item.id,
-      humanizeDuration(
-        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime()
-      )
-    );
+  const body = events.map((item) => {
+    const isExtra = item.eventType === "extra";
+    return [
+      isExtra ? "Extra" : "Ataque",
+      formatDateDisplay(item.timestamp),
+      diffMap.get(item.id) || "—",
+      item.time || "—",
+      isExtra ? "—" : `${item.durationMinutes || "—"} min`,
+      isExtra ? item.extraTitle || "—" : "—",
+      item.triggers || "—",
+      item.dailyMedication || "—",
+      item.rescueMedication || "—",
+      item.symptoms || "—",
+      item.notes || "—"
+    ];
   });
-
-  const body = events.map((item) => [
-    formatDateDisplay(item.timestamp),
-    diffMap.get(item.id) || "—",
-    item.time || "—",
-    `${item.durationMinutes || "—"} min`,
-    item.triggers || "—",
-    item.dailyMedication || "—",
-    item.rescueMedication || "—",
-    item.symptoms || "—",
-    item.notes || "—"
-  ]);
 
   docPdf.autoTable({
     startY: 26,
     head: [[
+      "Tipo",
       "Fecha",
-      "Desde el anterior",
+      "Desde el anterior ataque",
       "Hora",
       "Duración",
+      "Título",
       "Desencadenantes",
       "Prevención",
       "Rescate",
@@ -456,26 +511,38 @@ function downloadPdf() {
     ]],
     body,
     styles: {
-      fontSize: 8,
+      fontSize: 7.5,
       cellPadding: 2.2,
       overflow: "linebreak",
-      valign: "top"
+      valign: "top",
+      textColor: [31, 28, 25]
     },
     headStyles: {
       fillColor: [125, 93, 63]
     },
     columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 16 },
-      3: { cellWidth: 18 },
-      4: { cellWidth: 34 },
-      5: { cellWidth: 34 },
+      0: { cellWidth: 16 },
+      1: { cellWidth: 21 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 14 },
+      4: { cellWidth: 17 },
+      5: { cellWidth: 25 },
       6: { cellWidth: 28 },
-      7: { cellWidth: 34 },
-      8: { cellWidth: 45 }
+      7: { cellWidth: 30 },
+      8: { cellWidth: 24 },
+      9: { cellWidth: 28 },
+      10: { cellWidth: 38 }
     },
-    margin: { left: 8, right: 8 }
+    didParseCell(data) {
+      if (data.section !== "body") return;
+      const rowType = data.row.raw[0];
+
+      if (rowType === "Extra") {
+        data.cell.styles.fillColor = [231, 238, 251];
+        data.cell.styles.textColor = [47, 79, 133];
+      }
+    },
+    margin: { left: 6, right: 6 }
   });
 
   const fileDate = exportDate.toISOString().slice(0, 10);
@@ -561,6 +628,16 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    await navigator.serviceWorker.register("./sw.js");
+  } catch (error) {
+    console.error("Error registrando service worker:", error);
+  }
 }
 
 window.deleteEventById = handleDelete;
