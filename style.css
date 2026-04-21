@@ -222,6 +222,45 @@ h1 {
   gap: 10px;
 }
 
+.inline-field-action {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.daily-checklist {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.daily-history {
+  margin-top: 16px;
+}
+
+.daily-history h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.daily-logs-list {
+  display: grid;
+  gap: 10px;
+}
+
+.daily-log-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.daily-log-card p,
+.daily-empty {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
 .btn {
   appearance: none;
   border: 0;
@@ -509,7 +548,16 @@ th {
     flex-wrap: wrap;
   }
 
+  .inline-field-action {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
   .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .daily-checklist {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -520,7 +568,7 @@ th {
   }
 
   .stats-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .desktop-table {

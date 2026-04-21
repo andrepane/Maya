@@ -173,6 +173,55 @@
             <span class="stat-card__label">Sincronización</span>
             <strong id="syncStatus">Conectando...</strong>
           </article>
+
+          <article class="stat-card">
+            <span class="stat-card__label">Media del día (hoy)</span>
+            <strong id="todayDailyScore">—</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Cómo ha ido el día</h2>
+          <p>Evalúa cada ítem del 1 al 5 y guarda una media resumen diaria.</p>
+        </div>
+
+        <form id="dailyForm" class="event-form">
+          <div class="field-grid">
+            <div class="field">
+              <label for="dailyDate">Fecha del resumen</label>
+              <input id="dailyDate" name="dailyDate" type="date" required />
+            </div>
+
+            <div class="field">
+              <label for="newDailyItem">Añadir nuevo ítem al cuestionario</label>
+              <div class="inline-field-action">
+                <input
+                  id="newDailyItem"
+                  name="newDailyItem"
+                  type="text"
+                  placeholder="Ej. sueño, energía..."
+                />
+                <button id="addDailyItemBtn" class="btn btn-secondary" type="button">
+                  Añadir
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="dailyChecklist" class="daily-checklist"></div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="saveDailyBtn">
+              Guardar resumen del día
+            </button>
+          </div>
+        </form>
+
+        <div class="daily-history">
+          <h3>Últimos resúmenes</h3>
+          <div id="dailyLogsList" class="daily-logs-list"></div>
         </div>
       </section>
 
