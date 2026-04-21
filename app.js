@@ -14,7 +14,8 @@ import {
   query,
   orderBy,
   getDocs,
-  writeBatch
+  writeBatch,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -41,6 +42,13 @@ const dailyMedicationInput = document.getElementById("dailyMedication");
 const rescueMedicationInput = document.getElementById("rescueMedication");
 const symptomsInput = document.getElementById("symptoms");
 const notesInput = document.getElementById("notes");
+const dailyForm = document.getElementById("dailyForm");
+const dailyDateInput = document.getElementById("dailyDate");
+const dailyChecklistEl = document.getElementById("dailyChecklist");
+const newDailyItemInput = document.getElementById("newDailyItem");
+const addDailyItemBtn = document.getElementById("addDailyItemBtn");
+const saveDailyBtn = document.getElementById("saveDailyBtn");
+const dailyLogsListEl = document.getElementById("dailyLogsList");
 
 const eventsTableBody = document.getElementById("eventsTableBody");
 const mobileCards = document.getElementById("mobileCards");
@@ -48,6 +56,7 @@ const totalEventsEl = document.getElementById("totalEvents");
 const lastEventTextEl = document.getElementById("lastEventText");
 const timeSinceLastNowEl = document.getElementById("timeSinceLastNow");
 const syncStatusEl = document.getElementById("syncStatus");
+const todayDailyScoreEl = document.getElementById("todayDailyScore");
 
 const saveBtn = document.getElementById("saveBtn");
 const resetBtn = document.getElementById("resetBtn");
@@ -55,13 +64,20 @@ const clearAllBtn = document.getElementById("clearAllBtn");
 const downloadPdfBtn = document.getElementById("downloadPdfBtn");
 
 const EVENTS_COLLECTION = "maya_events";
+const DAILY_ITEMS_COLLECTION = "maya_daily_items";
+const DAILY_LOGS_COLLECTION = "maya_daily_logs";
 let events = [];
+let dailyItems = [];
+let dailyLogs = [];
 let unsubscribeEvents = null;
+let unsubscribeDailyItems = null;
+let unsubscribeDailyLogs = null;
 
 init();
 
 function init() {
   setDefaultDateTime();
+  setDefaultDailyDate();
   bindEvents();
   signIn();
   registerServiceWorker();
@@ -82,6 +98,9 @@ function bindEvents() {
 
   clearAllBtn.addEventListener("click", handleClearAll);
   downloadPdfBtn.addEventListener("click", downloadPdf);
+  dailyForm.addEventListener("submit", handleDailySubmit);
+  addDailyItemBtn.addEventListener("click", handleAddDailyItem);
+  dailyDateInput.addEventListener("change", renderDailyFormValues);
   setInterval(updateLiveTimeSinceLast, 60000);
 }
 
@@ -111,12 +130,30 @@ async function signIn() {
 
       syncStatusEl.textContent = "Sincronizado";
       subscribeToEvents();
+      subscribeToDailyItems();
+      subscribeToDailyLogs();
+      ensureDefaultDailyItems();
     });
   } catch (error) {
     console.error(error);
     syncStatusEl.textContent = "Error de conexión";
     showToast("Error conectando con Firebase.");
   }
+}
+
+async function ensureDefaultDailyItems() {
+  const snapshot = await getDocs(collection(db, DAILY_ITEMS_COLLECTION));
+  if (!snapshot.empty) return;
+
+  const defaults = ["Comida", "Baño", "Estrés"];
+  const now = new Date().toISOString();
+  const writes = defaults.map((label, index) => addDoc(collection(db, DAILY_ITEMS_COLLECTION), {
+    label,
+    order: index,
+    createdAt: now
+  }));
+
+  await Promise.all(writes);
 }
 
 function subscribeToEvents() {
@@ -138,6 +175,49 @@ function subscribeToEvents() {
       console.error(error);
       syncStatusEl.textContent = "Error al sincronizar";
       showToast("No se han podido cargar los eventos.");
+    }
+  );
+}
+
+function subscribeToDailyItems() {
+  if (unsubscribeDailyItems) unsubscribeDailyItems();
+
+  const q = query(collection(db, DAILY_ITEMS_COLLECTION), orderBy("order", "asc"));
+  unsubscribeDailyItems = onSnapshot(
+    q,
+    (snapshot) => {
+      dailyItems = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data()
+      }));
+      renderDailyChecklist();
+      renderDailyFormValues();
+    },
+    (error) => {
+      console.error(error);
+      showToast("No se han podido cargar los ítems diarios.");
+    }
+  );
+}
+
+function subscribeToDailyLogs() {
+  if (unsubscribeDailyLogs) unsubscribeDailyLogs();
+
+  const q = query(collection(db, DAILY_LOGS_COLLECTION), orderBy("date", "desc"));
+  unsubscribeDailyLogs = onSnapshot(
+    q,
+    (snapshot) => {
+      dailyLogs = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data()
+      }));
+      renderDailyFormValues();
+      renderDailyLogsList();
+      renderTodayDailyScore();
+    },
+    (error) => {
+      console.error(error);
+      showToast("No se han podido cargar los resúmenes diarios.");
     }
   );
 }
@@ -278,6 +358,150 @@ function renderSummary() {
 
   const latestAttack = attacksOnly[attacksOnly.length - 1];
   timeSinceLastNowEl.textContent = diffFromNow(latestAttack.timestamp);
+}
+
+function renderTodayDailyScore() {
+  const today = formatDateInput(new Date());
+  const todayLog = dailyLogs.find((item) => item.date === today);
+  todayDailyScoreEl.textContent = todayLog ? `${todayLog.average.toFixed(2)} / 5` : "—";
+}
+
+function renderDailyChecklist() {
+  if (!dailyItems.length) {
+    dailyChecklistEl.innerHTML = `
+      <p class="daily-empty">Todavía no hay ítems en el cuestionario diario.</p>
+    `;
+    return;
+  }
+
+  dailyChecklistEl.innerHTML = dailyItems
+    .map((item) => `
+      <div class="field">
+        <label for="daily-item-${item.id}">${escapeHtml(item.label)}</label>
+        <select id="daily-item-${item.id}" data-item-id="${item.id}" required>
+          <option value="">Selecciona</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+    `)
+    .join("");
+}
+
+function renderDailyFormValues() {
+  const dateValue = dailyDateInput.value;
+  if (!dateValue || !dailyItems.length) return;
+
+  const selectedLog = dailyLogs.find((item) => item.date === dateValue);
+  dailyItems.forEach((item) => {
+    const select = document.querySelector(`#daily-item-${item.id}`);
+    if (!select) return;
+    const rating = selectedLog?.ratings?.[item.id];
+    select.value = typeof rating === "number" ? String(rating) : "";
+  });
+}
+
+function renderDailyLogsList() {
+  if (!dailyLogs.length) {
+    dailyLogsListEl.innerHTML = `<p class="daily-empty">Aún no hay resúmenes guardados.</p>`;
+    return;
+  }
+
+  dailyLogsListEl.innerHTML = dailyLogs
+    .slice(0, 10)
+    .map((item) => `
+      <article class="daily-log-card">
+        <div>
+          <strong>${escapeHtml(item.date)}</strong>
+          <p>Media: ${Number(item.average).toFixed(2)} / 5</p>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+async function handleAddDailyItem() {
+  const label = newDailyItemInput.value.trim();
+  if (!label) {
+    showToast("Escribe un nombre para el nuevo ítem.");
+    return;
+  }
+
+  const normalizedLabel = label.toLocaleLowerCase("es-ES");
+  const exists = dailyItems.some(
+    (item) => String(item.label).toLocaleLowerCase("es-ES") === normalizedLabel
+  );
+
+  if (exists) {
+    showToast("Ese ítem ya existe en el cuestionario.");
+    return;
+  }
+
+  try {
+    addDailyItemBtn.disabled = true;
+    await addDoc(collection(db, DAILY_ITEMS_COLLECTION), {
+      label,
+      order: dailyItems.length,
+      createdAt: new Date().toISOString()
+    });
+    newDailyItemInput.value = "";
+    showToast("Nuevo ítem añadido al cuestionario.");
+  } catch (error) {
+    console.error(error);
+    showToast("No se ha podido añadir el nuevo ítem.");
+  } finally {
+    addDailyItemBtn.disabled = false;
+  }
+}
+
+async function handleDailySubmit(event) {
+  event.preventDefault();
+
+  const date = dailyDateInput.value;
+  if (!date) {
+    showToast("Selecciona una fecha para el resumen.");
+    return;
+  }
+
+  if (!dailyItems.length) {
+    showToast("No hay ítems para evaluar.");
+    return;
+  }
+
+  const ratings = {};
+  for (const item of dailyItems) {
+    const select = document.querySelector(`#daily-item-${item.id}`);
+    const value = Number(select?.value);
+    if (!value || value < 1 || value > 5) {
+      showToast("Debes marcar todos los ítems con una nota del 1 al 5.");
+      return;
+    }
+    ratings[item.id] = value;
+  }
+
+  const values = Object.values(ratings);
+  const average = values.reduce((sum, current) => sum + current, 0) / values.length;
+
+  try {
+    saveDailyBtn.disabled = true;
+    saveDailyBtn.textContent = "Guardando...";
+    await setDoc(doc(db, DAILY_LOGS_COLLECTION, date), {
+      date,
+      ratings,
+      average,
+      updatedAt: new Date().toISOString()
+    });
+    showToast("Resumen del día guardado.");
+  } catch (error) {
+    console.error(error);
+    showToast("No se ha podido guardar el resumen diario.");
+  } finally {
+    saveDailyBtn.disabled = false;
+    saveDailyBtn.textContent = "Guardar resumen del día";
+  }
 }
 
 function renderDesktopTable() {
@@ -553,6 +777,10 @@ function setDefaultDateTime() {
   const now = new Date();
   eventDateInput.value = formatDateInput(now);
   eventTimeInput.value = formatTimeInput(now);
+}
+
+function setDefaultDailyDate() {
+  dailyDateInput.value = formatDateInput(new Date());
 }
 
 function diffFromNow(isoString) {
